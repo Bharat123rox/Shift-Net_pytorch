@@ -146,10 +146,12 @@ class ShiftNetModel(BaseModel):
         self.real_B = real_B
         self.image_paths = input['A_paths']
     
-
+    # A temporary workaround.
     def set_latent_mask(self, mask_global, layer_to_last):
-        for ng_shift in self.ng_shift_list: # ITERATE OVER THE LIST OF ng_shift_list
-            ng_shift.set_mask(mask_global, layer_to_last)
+        self.ng_shift_list[0].set_mask(mask_global, layer_to_last+1) # the 4-th to last.
+        self.ng_shift_list[1].set_mask(mask_global, layer_to_last)
+        # for ng_shift in self.ng_shift_list: # ITERATE OVER THE LIST OF ng_shift_list
+            # ng_shift.set_mask(mask_global, layer_to_last)
 
     def set_gt_latent(self):
         if not self.opt.skip:
