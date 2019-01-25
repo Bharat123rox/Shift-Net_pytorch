@@ -70,13 +70,12 @@ class ShiftNetModel(BaseModel):
             self.mask_global = self.mask_global.to(self.device)
 
         # load/define networks
-        # self.ng_innerCos_list is the constraint list in netG inner layers.
         # self.ng_mask_list is the mask list constructing shift operation.
         if opt.add_mask2input:
             input_nc = opt.input_nc + 1
         else:
             input_nc = opt.input_nc
-        self.netG, self.ng_innerCos_list, self.ng_shift_list = networks.define_G(input_nc, opt.output_nc, opt.ngf,
+        self.netG, self.ng_shift_list = networks.define_G(input_nc, opt.output_nc, opt.ngf,
                                       opt.which_model_netG, opt, self.mask_global, opt.norm, opt.use_dropout, opt.init_type, self.gpu_ids, opt.init_gain) # add opt, we need opt.shift_sz and other stuffs
         if self.isTrain:
             use_sigmoid = False

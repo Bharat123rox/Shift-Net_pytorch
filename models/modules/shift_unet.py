@@ -30,7 +30,7 @@ from .modules import *
 # if |num_downs| == 7, image of size 128x128 will become of size 1x1
 # at the bottleneck
 class UnetGeneratorShiftTriple(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs, opt, innerCos_list, shift_list, mask_global, ngf=64,
+    def __init__(self, input_nc, output_nc, num_downs, opt, shift_list, mask_global, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, use_spectral_norm=False):
         super(UnetGeneratorShiftTriple, self).__init__()
 
@@ -44,7 +44,7 @@ class UnetGeneratorShiftTriple(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
                                              norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)
 
-        unet_shift_block = UnetSkipConnectionShiftBlock(ngf * 2, ngf * 4, opt, innerCos_list, shift_list,
+        unet_shift_block = UnetSkipConnectionShiftBlock(ngf * 2, ngf * 4, opt, shift_list,
                                                                     mask_global, input_nc=None, \
                                                                     submodule=unet_block,
                                                                     norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)  # passing in unet_shift_block
@@ -62,7 +62,7 @@ class UnetGeneratorShiftTriple(nn.Module):
 # Mention: the TripleBlock differs in `upconv` defination.
 # 'cos' means that we add a `innerCos` layer in the block.
 class UnetSkipConnectionShiftBlock(nn.Module):
-    def __init__(self, outer_nc, inner_nc, opt, innerCos_list, shift_list, mask_global, input_nc, \
+    def __init__(self, outer_nc, inner_nc, opt, shift_list, mask_global, input_nc, \
                  submodule=None, shift_layer=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d,
                  use_dropout=False, use_spectral_norm=False):
         super(UnetSkipConnectionShiftBlock, self).__init__()
@@ -86,10 +86,8 @@ class UnetSkipConnectionShiftBlock(nn.Module):
         shift_list.append(shift)
 
         # Add latent constraint
-        # Then add the constraint to the constrain layer list!
         innerCos = InnerCos(strength=opt.strength, skip=opt.skip)
         innerCos.set_mask(mask_global, 3)  # Here we need to set mask for innerCos layer too.
-        innerCos_list.append(innerCos)
 
         # Different position only has differences in `upconv`
         # for the outermost, the special is `tanh`
@@ -145,7 +143,7 @@ class UnetSkipConnectionShiftBlock(nn.Module):
 # if |num_downs| == 7, image of size 128x128 will become of size 1x1
 # at the bottleneck
 class ResUnetGeneratorShiftTriple(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs, opt, innerCos_list, shift_list, mask_global, ngf=64,
+    def __init__(self, input_nc, output_nc, num_downs, opt, shift_list, mask_global, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, use_spectral_norm=False):
         super(ResUnetGeneratorShiftTriple, self).__init__()
 
@@ -159,7 +157,7 @@ class ResUnetGeneratorShiftTriple(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
                                              norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)
 
-        unet_shift_block = ResUnetSkipConnectionBlock(ngf * 2, ngf * 4, opt, innerCos_list, shift_list,
+        unet_shift_block = ResUnetSkipConnectionBlock(ngf * 2, ngf * 4, opt, shift_list,
                                                                     mask_global, input_nc=None, \
                                                                     submodule=unet_block,
                                                                     norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)  # passing in unet_shift_block
@@ -177,7 +175,7 @@ class ResUnetGeneratorShiftTriple(nn.Module):
 # Mention: the TripleBlock differs in `upconv` defination.
 # 'cos' means that we add a `innerCos` layer in the block.
 class ResUnetSkipConnectionBlock(nn.Module):
-    def __init__(self, outer_nc, inner_nc, opt, innerCos_list, shift_list, mask_global, input_nc, \
+    def __init__(self, outer_nc, inner_nc, opt, shift_list, mask_global, input_nc, \
                  submodule=None, shift_layer=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d,
                  use_dropout=False, use_spectral_norm=False):
         super(ResUnetSkipConnectionBlock, self).__init__()
@@ -201,10 +199,8 @@ class ResUnetSkipConnectionBlock(nn.Module):
         shift_list.append(shift)
 
         # Add latent constraint
-        # Then add the constraint to the constrain layer list!
         innerCos = InnerCos(strength=opt.strength, skip=opt.skip)
         innerCos.set_mask(mask_global, 3)  # Here we need to set mask for innerCos layer too.
-        innerCos_list.append(innerCos)
 
         # Different position only has differences in `upconv`
         # for the outermost, the special is `tanh`
@@ -256,7 +252,7 @@ class ResUnetSkipConnectionBlock(nn.Module):
 ###################################        Soft pixel shift      #####################################
 ################################### ***************************  #####################################
 class SoftUnetGeneratorShiftTriple(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs, opt, innerCos_list, shift_list, mask_global, ngf=64,
+    def __init__(self, input_nc, output_nc, num_downs, opt, shift_list, mask_global, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, use_spectral_norm=False):
         super(SoftUnetGeneratorShiftTriple, self).__init__()
 
@@ -270,7 +266,7 @@ class SoftUnetGeneratorShiftTriple(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
                                              norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)
 
-        unet_shift_block = SoftUnetSkipConnectionBlock(ngf * 2, ngf * 4, opt, innerCos_list, shift_list,
+        unet_shift_block = SoftUnetSkipConnectionBlock(ngf * 2, ngf * 4, opt, shift_list,
                                                                  mask_global, input_nc=None, \
                                                                  submodule=unet_block,
                                                                  norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)  # passing in unet_shift_block
@@ -290,7 +286,7 @@ class SoftUnetGeneratorShiftTriple(nn.Module):
 # X -------------------identity---------------------- X
 #   |-- downsampling -- |submodule| -- upsampling --|
 class SoftUnetSkipConnectionBlock(nn.Module):
-    def __init__(self, outer_nc, inner_nc, opt, innerCos_list, shift_list, mask_global, input_nc, \
+    def __init__(self, outer_nc, inner_nc, opt, shift_list, mask_global, input_nc, \
                  submodule=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False, use_spectral_norm=False):
         super(SoftUnetSkipConnectionBlock, self).__init__()
         self.outermost = outermost
@@ -312,10 +308,8 @@ class SoftUnetSkipConnectionBlock(nn.Module):
         shift_list.append(shift)
 
         # Add latent constraint
-        # Then add the constraint to the constrain layer list!
         innerCos = InnerCos(strength=opt.strength, skip=opt.skip)
         innerCos.set_mask(mask_global, 3)  # Here we need to set mask for innerCos layer too.
-        innerCos_list.append(innerCos)
 
         # Different position only has differences in `upconv`
         # for the outermost, the special is `tanh`
@@ -372,7 +366,7 @@ class SoftUnetSkipConnectionBlock(nn.Module):
 # if |num_downs| == 7, image of size 128x128 will become of size 1x1
 # at the bottleneck
 class PatchSoftUnetGeneratorShiftTriple(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs, opt, innerCos_list, shift_list, mask_global, ngf=64,
+    def __init__(self, input_nc, output_nc, num_downs, opt, shift_list, mask_global, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, use_spectral_norm=False):
         super(PatchSoftUnetGeneratorShiftTriple, self).__init__()
 
@@ -386,7 +380,7 @@ class PatchSoftUnetGeneratorShiftTriple(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
                                              norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)
 
-        unet_shift_block = PatchSoftUnetSkipConnectionShiftTriple(ngf * 2, ngf * 4, opt, innerCos_list, shift_list,
+        unet_shift_block = PatchSoftUnetSkipConnectionShiftTriple(ngf * 2, ngf * 4, opt, shift_list,
                                                                     mask_global, input_nc=None, \
                                                                     submodule=unet_block,
                                                                     norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)  # passing in unet_shift_block
@@ -428,10 +422,8 @@ class PatchSoftUnetSkipConnectionShiftTriple(nn.Module):
         shift_list.append(shift)
 
         # Add latent constraint
-        # Then add the constraint to the constrain layer list!
         innerCos = InnerCos(strength=opt.strength, skip=opt.skip)
         innerCos.set_mask(mask_global, 3)  # Here we need to set mask for innerCos layer too.
-        innerCos_list.append(innerCos)
 
         # Different position only has differences in `upconv`
         # for the outermost, the special is `tanh`
@@ -488,7 +480,7 @@ class PatchSoftUnetSkipConnectionShiftTriple(nn.Module):
 # if |num_downs| == 7, image of size 128x128 will become of size 1x1
 # at the bottleneck
 class ResPatchSoftUnetGeneratorShiftTriple(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs, opt, innerCos_list, shift_list, mask_global, ngf=64,
+    def __init__(self, input_nc, output_nc, num_downs, opt, shift_list, mask_global, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False, use_spectral_norm=False):
         super(ResPatchSoftUnetGeneratorShiftTriple, self).__init__()
 
@@ -502,7 +494,7 @@ class ResPatchSoftUnetGeneratorShiftTriple(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
                                              norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)
 
-        unet_shift_block = ResPatchSoftUnetSkipConnectionShiftTriple(ngf * 2, ngf * 4, opt, innerCos_list, shift_list,
+        unet_shift_block = ResPatchSoftUnetSkipConnectionShiftTriple(ngf * 2, ngf * 4, opt, shift_list,
                                                                     mask_global, input_nc=None, \
                                                                     submodule=unet_block,
                                                                     norm_layer=norm_layer, use_spectral_norm=use_spectral_norm)  # passing in unet_shift_block
@@ -520,7 +512,7 @@ class ResPatchSoftUnetGeneratorShiftTriple(nn.Module):
 # Mention: the TripleBlock differs in `upconv` defination.
 # 'cos' means that we add a `innerCos` layer in the block.
 class ResPatchSoftUnetSkipConnectionShiftTriple(nn.Module):
-    def __init__(self, outer_nc, inner_nc, opt, innerCos_list, shift_list, mask_global, input_nc, \
+    def __init__(self, outer_nc, inner_nc, opt, shift_list, mask_global, input_nc, \
                  submodule=None, shift_layer=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d,
                  use_dropout=False, use_spectral_norm=False):
         super(ResPatchSoftUnetSkipConnectionShiftTriple, self).__init__()
@@ -544,10 +536,8 @@ class ResPatchSoftUnetSkipConnectionShiftTriple(nn.Module):
         shift_list.append(shift)
 
         # Add latent constraint
-        # Then add the constraint to the constrain layer list!
         innerCos = InnerCos(strength=opt.strength, skip=opt.skip)
         innerCos.set_mask(mask_global, 3)  # Here we need to set mask for innerCos layer too.
-        innerCos_list.append(innerCos)
 
         # Different position only has differences in `upconv`
         # for the outermost, the special is `tanh`
@@ -600,7 +590,7 @@ class ResPatchSoftUnetSkipConnectionShiftTriple(nn.Module):
 ###################################       InceptionUnet          #####################################
 ################################### ***************************  #####################################
 class InceptionUnetGeneratorShiftTriple(nn.Module):
-    def __init__(self, input_nc, output_nc, num_downs, opt, innerCos_list, shift_list, mask_global, ngf=64,
+    def __init__(self, input_nc, output_nc, num_downs, opt, shift_list, mask_global, ngf=64,
                  norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(InceptionUnetGeneratorShiftTriple, self).__init__()
 
@@ -614,7 +604,7 @@ class InceptionUnetGeneratorShiftTriple(nn.Module):
         unet_block = InceptionUnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
                                              norm_layer=norm_layer)
 
-        unet_shift_block = InceptionShiftUnetSkipConnectionBlock(ngf * 2, ngf * 4, opt=opt, innerCos_list=innerCos_list, shift_list=shift_list,
+        unet_shift_block = InceptionShiftUnetSkipConnectionBlock(ngf * 2, ngf * 4, opt=opt, shift_list=shift_list,
                                                                  mask_global=mask_global, input_nc=None, \
                                                                  submodule=unet_block,
                                                                  norm_layer=norm_layer, shift_layer=True)  # passing in unet_shift_block # innerCos_list=None, shift_list=None, mask_global=None, input_nc=None, opt=None,\submodule=None, shift_layer=False, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False
@@ -697,7 +687,7 @@ class InceptionUnetSkipConnectionBlock(nn.Module):
 # X -------------------identity---------------------- X
 #   |-- downsampling -- |submodule| -- upsampling --|
 class InceptionShiftUnetSkipConnectionBlock(nn.Module):
-    def __init__(self, outer_nc, inner_nc, innerCos_list=None, shift_list=None, mask_global=None, input_nc=None, opt=None,\
+    def __init__(self, outer_nc, inner_nc, shift_list=None, mask_global=None, input_nc=None, opt=None,\
                  submodule=None, shift_layer=False, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(InceptionShiftUnetSkipConnectionBlock, self).__init__()
 
@@ -717,7 +707,6 @@ class InceptionShiftUnetSkipConnectionBlock(nn.Module):
             # Then add the constraint to the constrain layer list!
             innerCosBefore = InnerCos(strength=opt.strength, skip=opt.skip)
             innerCosBefore.set_mask(mask_global, 3)  # Here we need to set mask for innerCos layer too.
-            innerCos_list.append(innerCosBefore)
 
         downconv = InceptionDown(input_nc, inner_nc) # nn.Conv2d(input_nc, inner_nc, kernel_size=4,stride=2, padding=1)
 
