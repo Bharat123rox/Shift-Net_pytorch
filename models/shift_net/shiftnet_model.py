@@ -76,7 +76,6 @@ class ShiftNetModel(BaseModel):
             input_nc = opt.input_nc + 1
         else:
             input_nc = opt.input_nc
-
         self.netG, self.ng_innerCos_list, self.ng_shift_list = networks.define_G(input_nc, opt.output_nc, opt.ngf,
                                       opt.which_model_netG, opt, self.mask_global, opt.norm, opt.use_dropout, opt.init_type, self.gpu_ids, opt.init_gain) # add opt, we need opt.shift_sz and other stuffs
         if self.isTrain:
@@ -135,7 +134,6 @@ class ShiftNetModel(BaseModel):
 
         self.set_latent_mask(self.mask_global, 3)
 
-        #print(torch.max(real_A), torch.min(real_A))
 
         real_A.narrow(1,0,1).masked_fill_(self.mask_global, 0.)#2*123.0/255.0 - 1.0
         real_A.narrow(1,1,1).masked_fill_(self.mask_global, 0.)#2*104.0/255.0 - 1.0
@@ -149,7 +147,7 @@ class ShiftNetModel(BaseModel):
         self.real_A = real_A
         self.real_B = real_B
         self.image_paths = input['A_paths']
-    
+
 
     def set_latent_mask(self, mask_global, layer_to_last):
         for ng_shift in self.ng_shift_list: # ITERATE OVER THE LIST OF ng_shift_list
@@ -264,11 +262,7 @@ class ShiftNetModel(BaseModel):
 
 
         # Third add additional netG contraint loss!
-        self.ng_loss_value = 0
-        if not self.opt.skip:
-            for gl in self.ng_innerCos_list:
-                self.ng_loss_value += gl.loss
-            self.loss_G += self.ng_loss_value
+        # Guidance loss is absorted in the network. See `InnerCosFunction` for more details.
 
         self.loss_G.backward()
 

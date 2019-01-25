@@ -13,10 +13,10 @@ from models.res_shift_net.innerResShiftTriple import InnerResShiftTriple
 from models.soft_shift_net.innerSoftShiftTriple import InnerSoftShiftTriple
 
 # For patch patch shift
-from models.patch_soft_shift.innerPatchSoftShiftTriple import InnerPatchSoftShiftTriple 
+from models.patch_soft_shift.innerPatchSoftShiftTriple import InnerPatchSoftShiftTriple
 
 # For res patch patch shift
-from models.res_patch_soft_shift.innerResPatchSoftShiftTriple import InnerResPatchSoftShiftTriple 
+from models.res_patch_soft_shift.innerResPatchSoftShiftTriple import InnerResPatchSoftShiftTriple
 
 from .unet import UnetSkipConnectionBlock
 from .modules import *
