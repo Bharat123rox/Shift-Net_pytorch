@@ -5,24 +5,32 @@ class InnerCosFunction(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, input, criterion, strength, target, mask):
-        ctx.bs, ctx.c, _, _ = input.size()
-        ctx.target = target
+        ctx.c = input.size(1)
         ctx.strength = strength
-        if torch.cuda.is_available:
-            ctx.mask = mask.cuda()
-        ctx.former = input.narrow(1, 0, ctx.c//2)
-        ctx.former_in_mask = torch.mul(ctx.former, ctx.mask)
         ctx.criterion = criterion
 
+        ctx.save_for_backward(input, target, mask)
         return input
 
 
     @staticmethod
     def backward(ctx, grad_output):
-        ctx.fmask = ctx.former_in_mask.clone().detach().requires_grad_(True)
+        print('original former grad mean ', grad_output[:, 0:ctx.c//2, :, :].mean())
         with torch.enable_grad():
-            ctx.loss = ctx.criterion(ctx.fmask * ctx.strength, ctx.target)
+            input, target, mask = ctx.saved_tensors
+            former = input.narrow(1, 0, ctx.c//2)
+            former_in_mask = torch.mul(former, mask)
+            print(former_in_mask.requires_grad)
+            print(target.requires_grad)
+            former_in_mask_clone = former_in_mask.clone().detach().requires_grad_(True)
+            ctx.loss = ctx.criterion(former_in_mask_clone, target) * ctx.strength
             ctx.loss.backward()
+            print('now former grad mean ',former_in_mask_clone.grad.mean())
+            
+        print('now former grad mean ', grad_output[:, 0:ctx.c//2, :, :].mean())
+            
+        print()
+        assert 1==2
 
-        grad_output[:,0:ctx.c//2, :,:] += ctx.fmask.grad
+        grad_output[:,0:ctx.c//2, :,:] += former_in_mask.grad
         return grad_output, None, None, None, None

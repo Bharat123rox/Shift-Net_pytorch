@@ -28,10 +28,9 @@ class InnerCos(nn.Module):
             # It works like this:
             # Each iteration contains 2 forward, In the first forward, we input GT, just to get the target.
             # In the second forward, we input corrupted image, then back-propagate the network, the guidance loss works as expected.
-            self.target = self.target.expand_as(in_data.narrow(1,0, self.c//2)).type_as(in_data)
+            self.target = self.target.expand_as(in_data.narrow(1, 0, self.c // 2)).type_as(in_data)
             self.output = InnerCosFunction.apply(in_data, self.criterion, self.strength, self.target, self.mask)
             self.target = in_data.narrow(1, self.c // 2, self.c // 2).detach() # the latter part
-            self.target = self.target * self.strength
         else:
             self.loss = 0
             self.output = in_data
