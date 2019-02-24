@@ -87,6 +87,9 @@ class ShiftNetModel(BaseModel):
             self.netD = networks.define_D(opt.input_nc, opt.ndf,
                                           opt.which_model_netD,
                                           opt.n_layers_D, opt.norm, use_sigmoid, opt.use_spectral_norm_D, opt.init_type, self.gpu_ids, opt.init_gain)
+            self.netD_g = networks.define_D(opt.input_nc, opt.ndf,
+                                          opt.which_model_netD,
+                                          opt.n_layers_D, opt.norm, use_sigmoid, opt.use_spectral_norm_D, opt.init_type, self.gpu_ids, opt.init_gain)
 
         if self.isTrain:
             self.old_lr = opt.lr
@@ -104,13 +107,18 @@ class ShiftNetModel(BaseModel):
                                     lr=opt.lr, betas=(opt.beta1, 0.999))
                 self.optimizer_D = torch.optim.Adam(self.netD.parameters(),
                                                     lr=opt.lr, betas=(opt.beta1, 0.999))
+                self.optimizer_D_g = torch.optim.Adam(self.netD_g.parameters(),
+                                                    lr=opt.lr, betas=(opt.beta1, 0.999))
             else:
                 self.optimizer_G = torch.optim.Adam(self.netG.parameters(),
                                                     lr=opt.lr, betas=(opt.beta1, 0.999))
                 self.optimizer_D = torch.optim.Adam(self.netD.parameters(),
                                                     lr=opt.lr, betas=(opt.beta1, 0.999))
+                self.optimizer_D_g = torch.optim.Adam(self.netD_g.parameters(),
+                                                    lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
+            self.optimizers.append(self.optimizer_D_g)
             for optimizer in self.optimizers:
                 self.schedulers.append(networks.get_scheduler(optimizer, opt))
 
@@ -190,9 +198,9 @@ class ShiftNetModel(BaseModel):
         return self.image_paths
 
     def backward_D(self):
-        fake_B = self.fake_B
+        fake_B_g = self.fake_B
         # Real
-        real_B = self.real_B # GroundTruth
+        real_B_g = self.real_B # GroundTruth
 
         # Has been verfied, for square mask, let D discrinate masked patch, improves the results.
         if self.opt.mask_type == 'center' or self.opt.mask_sub_type == 'rect': 
@@ -204,9 +212,12 @@ class ShiftNetModel(BaseModel):
                                             self.rand_l:self.rand_l+self.opt.fineSize//2-2*self.opt.overlap]  
 
         self.pred_fake = self.netD(fake_B.detach())
-        self.pred_real = self.netD(real_B)
+        self.pred_real = self.netD(real_B.detach())
+        self.pred_fake_g = self.netD_g(fake_B_g.detach())
+        self.pred_real_g = self.netD_g(real_B_g.detach())
 
         if self.wgan_gp:
+            # Not implemented for gloabl and local D
             self.loss_D_fake = torch.mean(self.pred_fake)
             self.loss_D_real = torch.mean(self.pred_real)
 
@@ -223,20 +234,25 @@ class ShiftNetModel(BaseModel):
 
             self.loss_D = self.loss_D_fake - self.loss_D_real + gradient_penalty
         else:
-            self.pred_fake = self.netD(fake_B.detach())
-
             if self.opt.gan_type in ['vanilla', 'lsgan']:
                 self.loss_D_fake = self.criterionGAN(self.pred_fake, False)
+                self.loss_D_fake_g = self.criterionGAN(self.pred_fake_g, False)
                 self.loss_D_real = self.criterionGAN (self.pred_real, True)
+                self.loss_D_real_g = self.criterionGAN (self.pred_real_g, True)
 
-                self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5
+                self.loss_D = (self.loss_D_fake + self.loss_D_real + self.loss_D_fake_g + self.loss_D_real_g) * 0.5
 
             elif self.opt.gan_type == 're_s_gan':
-                self.loss_D = self.criterionGAN(self.pred_real - self.pred_fake, True)
+                self.loss_D_l = self.criterionGAN(self.pred_real - self.pred_fake, True)
+                self.loss_D_g = self.criterionGAN(self.pred_real_g - self.pred_fake_g, True)
+                self.loss_D = (self.loss_D_l + self.loss_D_g) * 0.5
 
             elif self.opt.gan_type == 're_avg_gan':
-                self.loss_D =  (self.criterionGAN (self.pred_real - torch.mean(self.pred_fake), True) \
+                self.loss_D_l =  (self.criterionGAN (self.pred_real - torch.mean(self.pred_fake), True) \
                                + self.criterionGAN (self.pred_fake - torch.mean(self.pred_real), False)) / 2.
+                self.loss_D_g =  (self.criterionGAN (self.pred_real_g - torch.mean(self.pred_fake_g), True) \
+                                + self.criterionGAN (self.pred_fake_g - torch.mean(self.pred_real_g), False)) / 2.
+                self.loss_D = (self.loss_D_l + self.loss_D_g) * 0.5
         # for `re_avg_gan`, need to retain graph of D.
         if self.opt.gan_type == 're_avg_gan':
             self.loss_D.backward(retain_graph=True)
@@ -246,29 +262,43 @@ class ShiftNetModel(BaseModel):
 
     def backward_G(self):
         # First, G(A) should fake the discriminator
-        fake_B = self.fake_B
+        fake_B_g = self.fake_B
+        real_B_g = self.real_B
         # Has been verfied, for square mask, let D discrinate masked patch, improves the results.
         if self.opt.mask_type == 'center' or self.opt.mask_sub_type == 'rect': 
         # Using the cropped fake_B as the input of D.
             fake_B = self.fake_B[:, :, self.rand_t:self.rand_t+self.opt.fineSize//2-2*self.opt.overlap, \
                                             self.rand_l:self.rand_l+self.opt.fineSize//2-2*self.opt.overlap]
+            real_B = self.real_B[:, :, self.rand_t:self.rand_t+self.opt.fineSize//2-2*self.opt.overlap, \
+                                            self.rand_l:self.rand_l+self.opt.fineSize//2-2*self.opt.overlap]                               
         pred_fake = self.netD(fake_B)
+        pred_fake_g = self.netD_g(fake_B_g)
 
 
         if self.wgan_gp:
+            # Not implemented for gloabl and local D
             self.loss_G_GAN = torch.mean(pred_fake)
         else:
             if self.opt.gan_type in ['vanilla', 'lsgan']:
-                self.loss_G_GAN = self.criterionGAN(pred_fake, True)
+                self.loss_G_GAN_l = self.criterionGAN(pred_fake, True)
+                self.loss_G_GAN_g = self.criterionGAN(pred_fake_g, True)
+                self.loss_G_GAN = (self.loss_G_GAN_l + self.loss_G_GAN_g) * 0.5
 
             elif self.opt.gan_type == 're_s_gan':
-                pred_real = self.netD (self.real_B)
-                self.loss_G_GAN = self.criterionGAN (pred_fake - pred_real, True)
+                pred_real = self.netD (real_B)
+                pred_real_g = self.netD_g (real_B_g)
+                self.loss_G_GAN_l = self.criterionGAN (pred_fake - pred_real, True)
+                self.loss_G_GAN_g = self.criterionGAN (pred_fake_g - pred_real_g, True)
+                self.loss_G_GAN = (self.loss_G_GAN_l + self.loss_G_GAN_g) * 0.5
 
             elif self.opt.gan_type == 're_avg_gan':
-                self.pred_real = self.netD(self.real_B)
-                self.loss_G_GAN =  (self.criterionGAN (self.pred_real - torch.mean(self.pred_fake), False) \
+                self.pred_real = self.netD(real_B)
+                self.pred_real_g = self.netD(real_B_g)
+                self.loss_G_GAN_l =  (self.criterionGAN (self.pred_real - torch.mean(self.pred_fake), False) \
                                + self.criterionGAN (self.pred_fake - torch.mean(self.pred_real), True)) / 2.
+                self.loss_G_GAN_g =  (self.criterionGAN (self.pred_real_g - torch.mean(self.pred_fake_g), False) \
+                               + self.criterionGAN (self.pred_fake_g - torch.mean(self.pred_real_g), True)) / 2.
+                self.loss_G_GAN = (self.loss_G_GAN_l + self.loss_G_GAN_g) * 0.5
 
 
         # If we change the mask as 'center with random position', then we can replacing loss_G_L1_m with 'Discounted L1'.
@@ -307,13 +337,17 @@ class ShiftNetModel(BaseModel):
             self.ncritic = 1
         # update D
         self.set_requires_grad(self.netD, True)
+        self.set_requires_grad(self.netD_g, True)
         for i in range(self.ncritic):
             self.optimizer_D.zero_grad()
+            self.optimizer_D_g.zero_grad()
             self.backward_D()
             self.optimizer_D.step()
+            self.optimizer_D_g.step()
 
         # update G
         self.set_requires_grad(self.netD, False)
+        self.set_requires_grad(self.netD_g, False)
         self.optimizer_G.zero_grad()
         self.backward_G()
         self.optimizer_G.step()
