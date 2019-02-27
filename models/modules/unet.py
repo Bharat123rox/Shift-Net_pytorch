@@ -42,9 +42,15 @@ class UnetSkipConnectionBlock(nn.Module):
         downconv = spectral_norm(nn.Conv2d(input_nc, inner_nc, kernel_size=4,
                              stride=2, padding=1), use_spectral_norm)
         downrelu = nn.LeakyReLU(0.2, True)
-        downnorm = norm_layer(inner_nc)
+
         uprelu = nn.ReLU(True)
-        upnorm = norm_layer(outer_nc)
+        if norm_layer.func != nn.LocalResponseNorm:
+            downnorm = norm_layer(inner_nc)
+            upnorm = norm_layer(outer_nc)
+        else:
+            # Using 2, 5 for testing different neighbors.
+            downnorm = norm_layer(5)
+            upnorm = norm_layer(5)
 
         # Different position only has differences in `upconv`
             # for the outermost, the special is `tanh`
